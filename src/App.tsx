@@ -142,6 +142,35 @@ function BookingForm({ type, onBack }: { type: 'coworking' | 'meeting_room'; onB
       return;
     }
 
+    // ✅ VÉRIFICATION FRONT-END DES HORAIRES D'OUVERTURE
+    const dayOfWeek = new Date(formData.bookingDate).getDay();
+    const [arrivalHours, arrivalMinutes] = formData.arrivalTime.split(':').map(Number);
+    const [departureHours, departureMinutes] = formData.departureTime.split(':').map(Number);
+    const arrivalInMinutes = arrivalHours * 60 + arrivalMinutes;
+    const departureInMinutes = departureHours * 60 + departureMinutes;
+
+    const isWithinOpeningHoursFrontend = (() => {
+      if (dayOfWeek === 0) return false; // Fermé le dimanche
+      
+      if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+        // Lun-Ven : 9h-19h
+        return arrivalInMinutes >= 9 * 60 && departureInMinutes <= 19 * 60;
+      }
+      
+      if (dayOfWeek === 6) {
+        // Sam : 10h-18h
+        return arrivalInMinutes >= 10 * 60 && departureInMinutes <= 18 * 60;
+      }
+      
+      return false;
+    })();
+
+    // ✅ SI HORS HORAIRES : PAS D'APPEL API, PAS DE BANDEAU
+    if (!isWithinOpeningHoursFrontend) {
+      setAvailability({ status: 'available', message: '', skipCheck: true });
+      return;
+    }
+
     setAvailability({ status: 'checking', message: 'Vérification...' });
 
     debounceTimer.current = setTimeout(async () => {
@@ -173,7 +202,6 @@ function BookingForm({ type, onBack }: { type: 'coworking' | 'meeting_room'; onB
 
         const data = await response.json();
         
-        // Si skipCheck est true (hors horaires), ne pas afficher de bandeau
         if (data.skipCheck) {
           setAvailability({ status: 'available', message: '', skipCheck: true });
           return;
