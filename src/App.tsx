@@ -124,7 +124,7 @@ function BookingForm({ type, onBack }: { type: 'coworking' | 'meeting_room'; onB
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [timeError, setTimeError] = useState('');
-  const [availability, setAvailability] = useState<{ status: 'idle' | 'checking' | 'available' | 'unavailable'; message: string; spotsRemaining?: number }>({ status: 'idle', message: '' });
+  const [availability, setAvailability] = useState<{ status: 'idle' | 'checking' | 'available' | 'unavailable'; message: string; spotsRemaining?: number; skipCheck?: boolean }>({ status: 'idle', message: '' });
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -172,6 +172,13 @@ function BookingForm({ type, onBack }: { type: 'coworking' | 'meeting_room'; onB
         }
 
         const data = await response.json();
+        
+        // Si skipCheck est true (hors horaires), ne pas afficher de bandeau
+        if (data.skipCheck) {
+          setAvailability({ status: 'available', message: '', skipCheck: true });
+          return;
+        }
+        
         setAvailability({
           status: data.available ? 'available' : 'unavailable',
           message: data.message,
@@ -633,7 +640,7 @@ function BookingForm({ type, onBack }: { type: 'coworking' | 'meeting_room'; onB
               </div>
             )}
 
-            {formData.bookingDate && formData.arrivalTime && formData.departureTime && (
+            {formData.bookingDate && formData.arrivalTime && formData.departureTime && !availability.skipCheck && availability.status !== 'idle' && (
               <div className={`border rounded-lg p-4 flex items-start gap-3 ${
                 availability.status === 'available'
                   ? 'bg-green-50 border-green-200'
@@ -660,11 +667,6 @@ function BookingForm({ type, onBack }: { type: 'coworking' | 'meeting_room'; onB
                   }`}>
                     {availability.message}
                   </p>
-                  {availability.status === 'available' && availability.spotsRemaining !== undefined && type === 'coworking' && (
-                    <p className="text-sm text-green-700 mt-1">
-                      {availability.spotsRemaining} place{availability.spotsRemaining > 1 ? 's' : ''} restante{availability.spotsRemaining > 1 ? 's' : ''}
-                    </p>
-                  )}
                 </div>
               </div>
             )}
